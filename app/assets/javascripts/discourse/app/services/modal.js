@@ -7,6 +7,7 @@ import { action } from "@ember/object";
 import { disableImplicitInjections } from "discourse/lib/implicit-injections";
 import { CLOSE_INITIATED_BY_MODAL_SHOW } from "discourse/components/d-modal";
 import deprecated from "discourse-common/lib/deprecated";
+import { EMBER_MAJOR_VERSION } from "discourse/lib/ember-version";
 
 // Known legacy modals in core. Silence deprecation warnings for these so the messages
 // don't cause unnecessary noise.
@@ -58,6 +59,19 @@ class ModalService extends Service {
    * @returns {Promise} A promise that resolves when the modal is closed, with any data passed to closeModal
    */
   show(modal, opts) {
+    if (typeof modal === "string") {
+      deprecated(
+        `Defining modals using a controller is no longer supported. Use the component-based API instead. (modal: ${modal})`,
+        {
+          id: "discourse.modal-controllers",
+          since: "3.1",
+          dropFrom: "3.2",
+          url: "https://meta.discourse.org/t/268057",
+          raiseError: true,
+        }
+      );
+    }
+
     this.close({ initiatedBy: CLOSE_INITIATED_BY_MODAL_SHOW });
 
     let resolveShowPromise;
@@ -90,7 +104,7 @@ class ModalService extends Service {
 }
 
 // Remove all logic below when legacy modals are dropped (deprecation: discourse.modal-controllers)
-export default class ModalServiceWithLegacySupport extends ModalService {
+class ModalServiceWithLegacySupport extends ModalService {
   @service appEvents;
 
   @tracked name;
@@ -266,3 +280,7 @@ export default class ModalServiceWithLegacySupport extends ModalService {
     return this.name && !this.activeModal;
   }
 }
+
+export default EMBER_MAJOR_VERSION >= 4
+  ? ModalService
+  : ModalServiceWithLegacySupport;
