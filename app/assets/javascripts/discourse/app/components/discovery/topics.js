@@ -1,25 +1,18 @@
-import { inject as controller } from "@ember/controller";
 import { inject as service } from "@ember/service";
-import { alias, empty, equal, gt, or, readOnly } from "@ember/object/computed";
+import { alias, empty, equal, gt, readOnly } from "@ember/object/computed";
 import BulkSelectHelper from "discourse/lib/bulk-select-helper";
 import DismissTopics from "discourse/mixins/dismiss-topics";
-import DiscoveryController from "discourse/controllers/discovery";
 import I18n from "I18n";
 import Topic from "discourse/models/topic";
-import deprecated from "discourse-common/lib/deprecated";
 import discourseComputed from "discourse-common/utils/decorators";
 import { endWith } from "discourse/lib/computed";
-import { routeAction } from "discourse/helpers/route-action";
 import { userPath } from "discourse/lib/url";
 import { action } from "@ember/object";
-import { filterTypeForMode } from "discourse/lib/filter-mode";
+import Component from "@ember/component";
 
-export default class TopicsController extends DiscoveryController.extend(
-  DismissTopics
-) {
+export default class DiscoveryTopics extends Component.extend(DismissTopics) {
   @service router;
   @service composer;
-  @controller discovery;
 
   bulkSelectHelper = new BulkSelectHelper(this);
 
@@ -41,36 +34,12 @@ export default class TopicsController extends DiscoveryController.extend(
   @equal("period", "weekly") weekly;
   @equal("period", "daily") daily;
 
-  @or("currentUser.canManageTopic", "showDismissRead", "showResetNew")
-  canBulkSelect;
-
-  get bulkSelectEnabled() {
-    return this.bulkSelectHelper.bulkSelectEnabled;
-  }
-
-  get selected() {
-    return this.bulkSelectHelper.selected;
-  }
-
-  @discourseComputed("model.filter", "model.topics.length")
-  showDismissRead(filterMode, topicsLength) {
-    return filterTypeForMode(filterMode) === "unread" && topicsLength > 0;
-  }
-
-  @discourseComputed("model.filter", "model.topics.length")
-  showResetNew(filterMode, topicsLength) {
-    return filterTypeForMode(filterMode) === "new" && topicsLength > 0;
-  }
-
   callResetNew(dismissPosts = false, dismissTopics = false, untrack = false) {
     const tracked =
       (this.router.currentRoute.queryParams["f"] ||
         this.router.currentRoute.queryParams["filter"]) === "tracked";
 
-    let topicIds = this.selected
-      ? this.selected.map((topic) => topic.id)
-      : null;
-
+    let topicIds = this.bulkSelectHelper.selected.map((topic) => topic.id);
     Topic.resetNew(this.category, !this.noSubcategories, {
       tracked,
       topicIds,
@@ -81,10 +50,7 @@ export default class TopicsController extends DiscoveryController.extend(
       if (result.topic_ids) {
         this.topicTrackingState.removeTopics(result.topic_ids);
       }
-      this.send(
-        "refresh",
-        tracked ? { skipResettingParams: ["filter", "f"] } : {}
-      );
+      this.router.refresh();
     });
   }
 
@@ -97,35 +63,6 @@ export default class TopicsController extends DiscoveryController.extend(
     // Move inserted into topics
     this.model.loadBefore(tracker.get("newIncoming"), true);
     tracker.resetTracking();
-  }
-
-  @action
-  changeSort() {
-    deprecated(
-      "changeSort has been changed from an (action) to a (route-action)",
-      {
-        since: "2.6.0",
-        dropFrom: "2.7.0",
-        id: "discourse.topics.change-sort",
-      }
-    );
-    return routeAction("changeSort", this.router._router, ...arguments)();
-  }
-
-  @action
-  refresh() {
-    this.send("triggerRefresh");
-  }
-
-  afterRefresh(filter, list, listModel = list) {
-    this.setProperties({ model: listModel });
-    this.resetSelected();
-
-    if (this.topicTrackingState) {
-      this.topicTrackingState.sync(list, filter);
-    }
-
-    this.send("loadingComplete");
   }
 
   @discourseComputed("model.filter")
@@ -226,22 +163,11 @@ export default class TopicsController extends DiscoveryController.extend(
   }
 
   @action
-  toggleBulkSelect() {
-    this.bulkSelectHelper.toggleBulkSelect();
-  }
-
-  @action
-  dismissRead(operationType, options) {
-    this.bulkSelectHelper.dismissRead(operationType, options);
-  }
-
-  @action
-  updateAutoAddTopicsToBulkSelect(value) {
-    this.bulkSelectHelper.autoAddTopicsToBulkSelect = value;
-  }
-
-  @action
-  addTopicsToBulkSelect(topics) {
-    this.bulkSelectHelper.addTopics(topics);
+  dismissRead(dismissTopics) {
+    const operationType = dismissTopics ? "topics" : "posts";
+    this.bulkSelectHelper.dismissRead(operationType, {
+      categoryId: this.category?.id,
+      includeSubcategories: this.noSubcategories,
+    });
   }
 }

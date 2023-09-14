@@ -1,15 +1,14 @@
-import Controller, { inject as controller } from "@ember/controller";
+import Component from "@glimmer/component";
 import { tracked } from "@glimmer/tracking";
 import { action } from "@ember/object";
 import { bind } from "discourse-common/utils/decorators";
 import discourseDebounce from "discourse-common/lib/debounce";
+import { resettableTracked } from "discourse/lib/tracked-tools";
 
-export default class NavigationFilterController extends Controller {
-  @controller("discovery/filter") discoveryFilter;
-
+export default class NavigationFilter extends Component {
   @tracked copyIcon = "link";
   @tracked copyClass = "btn-default";
-  @tracked newQueryString = "";
+  @resettableTracked newQueryString = this.args.queryString;
 
   @bind
   updateQueryString(string) {
@@ -19,7 +18,7 @@ export default class NavigationFilterController extends Controller {
   @action
   clearInput() {
     this.newQueryString = "";
-    this.discoveryFilter.updateTopicsListQueryParams(this.newQueryString);
+    this.args.updateTopicsListQueryParams(this.newQueryString);
   }
 
   @action

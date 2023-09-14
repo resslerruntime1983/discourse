@@ -1,0 +1,42 @@
+<Discovery::Layout
+  @category={{this.category}}
+  @createTopicDisabled={{this.createTopicDisabled}}
+>
+  <:header>
+    {{#if this.subcategoriesComponent}}
+      {{! TODO: More HTML wrappers required here for theme compat? Previously this was rendering the entire discovery/categories controller}}
+      <this.subcategoriesComponent
+        @categories={{this.subcategoryList.categories}}
+      />
+    {{/if}}
+  </:header>
+
+  <:navigation>
+    <Navigation::Default
+      @category={{this.navigationArgs.category}}
+      @filterType={{this.navigationArgs.filterType}}
+      @noSubcategories={{this.navigationArgs.noSubcategories}}
+      @canBulkSelect={{this.canBulkSelect}}
+      @bulkSelectHelper={{this.bulkSelectHelper}}
+      @createTopic={{this.createTopic}}
+      @createTopicDisabled={{this.createTopicDisabled}}
+    />
+  </:navigation>
+  <:list>
+    {{this.setTrackingTopicList this.model}}
+    <Discovery::Topics
+      @period={{this.period}}
+      @changePeriod={{this.changePeriod}}
+      @expandAllPinned={{this.expandAllPinned}}
+      @expandAllGloballyPinned={{this.expandAllGloballyPinned}}
+      @model={{this.model}}
+      @canBulkSelect={{this.canBulkSelect}}
+      @bulkSelectHelper={{this.bulkSelectHelper}}
+      @showDismissRead={{this.showDismissRead}}
+      @showResetNew={{this.showResetNew}}
+      @category={{this.category}}
+      @changeSort={{this.changeSort}}
+      @changeNewListSubset={{this.changeNewListSubset}}
+    />
+  </:list>
+</Discovery::Layout>

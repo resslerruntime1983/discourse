@@ -1,6 +1,4 @@
 import {
-  changeNewListSubset,
-  changeSort,
   queryParams,
   resetParams,
 } from "discourse/controllers/discovery-sortable";
@@ -99,13 +97,7 @@ export async function findTopicList(
 class AbstractTopicRoute extends DiscourseRoute {
   @service screenTrack;
   queryParams = queryParams;
-
-  beforeModel() {
-    this.controllerFor("navigation/default").set(
-      "filterType",
-      this.routeConfig.filter.split("/")[0]
-    );
-  }
+  templateName = "discovery/list";
 
   model(data, transition) {
     // attempt to stop early cause we need this to be called before .sync
@@ -134,41 +126,17 @@ class AbstractTopicRoute extends DiscourseRoute {
     return I18n.t("filters.with_topics", { filter: filterText });
   }
 
-  setupController(controller, model) {
-    const topicOpts = {
-      model,
-      category: null,
-      period: model.get("for_period") || model.get("params.period"),
+  setupController(controller) {
+    const filterType = this.routeConfig.filter.split("/")[0];
+    controller.setProperties({
+      filterType,
       expandAllPinned: false,
       expandGloballyPinned: true,
-    };
-
-    this.controllerFor("discovery/topics").setProperties(topicOpts);
-    this.controllerFor("discovery/topics").bulkSelectHelper.clear();
-
-    this.controllerFor("navigation/default").set(
-      "canCreateTopic",
-      model.get("can_create_topic")
-    );
-  }
-
-  renderTemplate() {
-    this.render("navigation/default", { outlet: "navigation-bar" });
-
-    this.render("discovery/topics", {
-      controller: "discovery/topics",
-      outlet: "list-container",
+      navigationArgs: { filterType },
     });
-  }
+    controller.bulkSelectHelper.clear();
 
-  @action
-  changeSort(sortBy) {
-    changeSort.call(this, sortBy);
-  }
-
-  @action
-  changeNewListSubset(subset) {
-    changeNewListSubset.call(this, subset);
+    super.setupController(...arguments);
   }
 
   @action

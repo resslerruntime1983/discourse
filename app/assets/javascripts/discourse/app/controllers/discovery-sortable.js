@@ -1,4 +1,14 @@
-import Controller, { inject as controller } from "@ember/controller";
+import Controller from "@ember/controller";
+import { action } from "@ember/object";
+import { disableImplicitInjections } from "discourse/lib/implicit-injections";
+import { setTopicList } from "discourse/lib/topic-list-tracker";
+import { inject as service } from "@ember/service";
+import { categoriesComponent } from "./discovery/categories";
+import { getOwner } from "@ember/application";
+import { tracked } from "@glimmer/tracking";
+import { filterTypeForMode } from "discourse/lib/filter-mode";
+import BulkSelectHelper from "discourse/lib/bulk-select-helper";
+import { defineTrackedProperty } from "discourse/lib/tracked-tools";
 
 // Just add query params here to have them automatically passed to topic list filters.
 export const queryParams = {
@@ -24,25 +34,6 @@ export const queryParams = {
   exclude_tag: { replace: true, refreshModel: true },
 };
 
-export function changeSort(sortBy) {
-  let model = this.controllerFor("discovery.topics").model;
-
-  if (sortBy === this.controller.order) {
-    this.controller.toggleProperty("ascending");
-    model.updateSortParams(sortBy, this.controller.ascending);
-  } else {
-    this.controller.setProperties({ order: sortBy, ascending: false });
-    model.updateSortParams(sortBy, false);
-  }
-}
-
-export function changeNewListSubset(subset) {
-  this.controller.set("subset", subset);
-
-  let model = this.controllerFor("discovery.topics").model;
-  model.updateNewListSubsetParam(subset);
-}
-
 export function resetParams(skipParams = []) {
   Object.keys(queryParams).forEach((p) => {
     if (!skipParams.includes(p)) {
@@ -55,15 +46,110 @@ export function addDiscoveryQueryParam(p, opts) {
   queryParams[p] = opts;
 }
 
+@disableImplicitInjections
 export default class DiscoverySortableController extends Controller {
-  @controller("discovery/topics") discoveryTopics;
+  @service composer;
+  @service siteSettings;
+  @service site;
+  @service currentUser;
+
+  @tracked model;
+  @tracked subcategoryList;
 
   queryParams = Object.keys(queryParams);
 
+  bulkSelectHelper = new BulkSelectHelper(this);
+
   constructor() {
     super(...arguments);
-    this.queryParams.forEach((p) => {
-      this[p] = queryParams[p].default;
+    for (const [name, info] of Object.entries(queryParams)) {
+      defineTrackedProperty(this, name, info.default);
+    }
+  }
+
+  get canBulkSelect() {
+    return (
+      this.currentUser?.canManageTopic ||
+      this.showDismissRead ||
+      this.showResetNew
+    );
+  }
+
+  get showDismissRead() {
+    return (
+      filterTypeForMode(this.model?.filter) === "unread" &&
+      this.model.get("topics.length") > 0
+    );
+  }
+
+  get showResetNew() {
+    return (
+      filterTypeForMode(this.model?.filter) === "new" &&
+      this.model?.get("topics.length") > 0
+    );
+  }
+
+  get createTopicTargetCategory() {
+    if (this.category?.canCreateTopic) {
+      return this.category;
+    }
+
+    if (this.siteSettings.default_subcategory_on_read_only_category) {
+      return this.category?.subcategoryWithCreateTopicPermission;
+    }
+  }
+
+  get createTopicDisabled() {
+    // We are in a category route, but user does not have permission for the category
+    return this.category && !this.createTopicTargetCategory;
+  }
+
+  get subcategoriesComponent() {
+    if (this.subcategoryList) {
+      const componentName = categoriesComponent({
+        site: this.site,
+        siteSettings: this.siteSettings,
+        parentCategory: this.subcategoryList.parentCategory,
+      });
+
+      // Todo, the `categoriesComponent` function should return a component class instead of a string
+      return getOwner(this).resolveRegistration(`component:${componentName}`);
+    }
+  }
+
+  @action
+  createTopic() {
+    this.composer.openNewTopic({
+      category: this.createTopicTargetCategory,
+      preferDraft: true,
     });
+  }
+
+  @action
+  setTrackingTopicList(model) {
+    setTopicList(model);
+  }
+
+  @action
+  changePeriod(p) {
+    this.period = p;
+  }
+
+  @action
+  changeSort(sortBy) {
+    if (sortBy === this.order) {
+      this.ascending = !this.ascending;
+      this.model.updateSortParams(sortBy, this.ascending);
+    } else {
+      this.order = sortBy;
+      this.ascending = false;
+      this.model.updateSortParams(sortBy, false);
+    }
+  }
+
+  @action
+  changeNewListSubset(subset) {
+    this.subset = subset;
+    this.model.updateNewListSubsetParam(subset);
   }
 }

@@ -1,0 +1,46 @@
+{{#if @category}}
+  <AddCategoryTagClasses @category={{@category}} />
+
+  <section class="category-heading">
+    {{#if @category.uploaded_logo.url}}
+      <CategoryLogo @category={{@category}} />
+      {{#if @category.description}}
+        <p>{{dir-span @category.description htmlSafe="true"}}</p>
+      {{/if}}
+    {{/if}}
+
+    <span>
+      <PluginOutlet
+        @name="category-heading"
+        @connectorTagName="div"
+        @outletArgs={{hash category=@category}}
+      />
+    </span>
+  </section>
+{{/if}}
+
+{{body-class this.bodyClass}}
+
+<section
+  class={{concat-class
+    "navigation-container"
+    (if @category "category-navigation")
+  }}
+>
+  <DNavigation
+    @category={{@category}}
+    @filterMode={{this.filterMode}}
+    @noSubcategories={{@noSubcategories}}
+    @canCreateTopic={{this.canCreateTopic}}
+    @createTopic={{@createTopic}}
+    @createTopicDisabled={{@createTopicDisabled}}
+    @hasDraft={{this.currentUser.has_topic_draft}}
+    @editCategory={{this.editCategory}}
+    @showCategoryAdmin={{@showCategoryAdmin}}
+    @createCategory={{this.createCategory}}
+    @reorderCategories={{this.reorderCategories}}
+    @canBulkSelect={{@canBulkSelect}}
+    @bulkSelectHelper={{@bulkSelectHelper}}
+    @skipCategoriesNavItem={{this.skipCategoriesNavItem}}
+  />
+</section>

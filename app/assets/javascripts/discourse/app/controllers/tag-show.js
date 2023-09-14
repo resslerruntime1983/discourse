@@ -20,6 +20,7 @@ export default class TagShowController extends DiscoverySortableController.exten
   @service router;
   @service currentUser;
   @service siteSettings;
+  @service topicTrackingState;
 
   @tracked category;
   @tracked filterType;
@@ -159,7 +160,7 @@ export default class TagShowController extends DiscoverySortableController.exten
       (this.router.currentRoute.queryParams["f"] ||
         this.router.currentRoute.queryParams["filter"]) === "tracked";
 
-    let topicIds = this.selected ? this.selected.mapBy("id") : null;
+    let topicIds = this.bulkSelectHelper.selected.map((t) => t.id);
 
     Topic.resetNew(this.category, !this.noSubcategories, {
       tracked: filterTracked,
@@ -272,22 +273,7 @@ export default class TagShowController extends DiscoverySortableController.exten
   }
 
   @action
-  toggleBulkSelect() {
-    this.bulkSelectHelper.toggleBulkSelect();
-  }
-
-  @action
   dismissRead(operationType, options) {
     this.bulkSelectHelper.dismissRead(operationType, options);
-  }
-
-  @action
-  updateAutoAddTopicsToBulkSelect(value) {
-    this.bulkSelectHelper.autoAddTopicsToBulkSelect = value;
-  }
-
-  @action
-  addTopicsToBulkSelect(topics) {
-    this.bulkSelectHelper.addTopics(topics);
   }
 }

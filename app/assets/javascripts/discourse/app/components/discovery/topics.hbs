@@ -8,11 +8,12 @@
 
 <TopicDismissButtons
   @position="top"
-  @selectedTopics={{this.selected}}
+  @selectedTopics={{this.bulkSelectHelper.selected}}
   @model={{this.model}}
   @showResetNew={{this.showResetNew}}
   @showDismissRead={{this.showDismissRead}}
   @resetNew={{action "resetNew"}}
+  @dismissRead={{this.dismissRead}}
 />
 
 {{#if this.model.sharedDrafts}}
@@ -29,18 +30,14 @@
 
 <DiscoveryTopicsList
   @model={{this.model}}
-  @refresh={{action "refresh"}}
-  @loadingComplete={{action "loadingComplete"}}
   @incomingCount={{this.topicTrackingState.incomingCount}}
-  @autoAddTopicsToBulkSelect={{this.autoAddTopicsToBulkSelect}}
-  @bulkSelectEnabled={{this.bulkSelectEnabled}}
-  @addTopicsToBulkSelect={{action "addTopicsToBulkSelect"}}
+  @bulkSelectHelper={{@bulkSelectHelper}}
 >
   {{#if this.top}}
     <div class="top-lists">
       <PeriodChooser
-        @period={{this.period}}
-        @action={{action "changePeriod"}}
+        @period={{@period}}
+        @action={{@changePeriod}}
         @fullDay={{false}}
       />
     </div>
@@ -68,7 +65,7 @@
       @current={{this.model.params.subset}}
       @newRepliesCount={{this.newRepliesCount}}
       @newTopicsCount={{this.newTopicsCount}}
-      @changeNewListSubset={{route-action "changeNewListSubset"}}
+      @changeNewListSubset={{this.changeNewListSubset}}
     />
   {{/if}}
 
@@ -86,18 +83,12 @@
       @top={{this.top}}
       @showTopicPostBadges={{this.showTopicPostBadges}}
       @showPosters={{true}}
-      @canBulkSelect={{this.canBulkSelect}}
-      @changeSort={{route-action "changeSort"}}
-      @toggleBulkSelect={{action "toggleBulkSelect"}}
-      @updateAutoAddTopicsToBulkSelect={{action
-        "updateAutoAddTopicsToBulkSelect"
-      }}
+      @canBulkSelect={{@canBulkSelect}}
+      @bulkSelectHelper={{@bulkSelectHelper}}
+      @changeSort={{@changeSort}}
       @hideCategory={{this.model.hideCategory}}
       @order={{this.order}}
       @ascending={{this.ascending}}
-      @bulkSelectEnabled={{this.bulkSelectEnabled}}
-      @bulkSelectAction={{action "refresh"}}
-      @selected={{this.selected}}
       @expandGloballyPinned={{this.expandGloballyPinned}}
       @expandAllPinned={{this.expandAllPinned}}
       @category={{this.category}}
@@ -106,7 +97,7 @@
       @focusLastVisitedTopic={{true}}
       @showTopicsAndRepliesToggle={{this.showTopicsAndRepliesToggle}}
       @newListSubset={{this.model.params.subset}}
-      @changeNewListSubset={{route-action "changeNewListSubset"}}
+      @changeNewListSubset={{this.changeNewListSubset}}
       @newRepliesCount={{this.newRepliesCount}}
       @newTopicsCount={{this.newTopicsCount}}
     />
@@ -125,11 +116,12 @@
   {{#if this.allLoaded}}
     <TopicDismissButtons
       @position="bottom"
-      @selectedTopics={{this.selected}}
+      @selectedTopics={{this.bulkSelectHelper.selected}}
       @model={{this.model}}
       @showResetNew={{this.showResetNew}}
       @showDismissRead={{this.showDismissRead}}
-      @resetNew={{action "resetNew"}}
+      @resetNew={{this.resetNew}}
+      @dismissRead={{this.dismissRead}}
     />
 
     <FooterMessage
@@ -152,10 +144,7 @@
             "topic.browse_all_categories_latest_or_top" basePath=(base-path)
           )
         }}
-        <TopPeriodButtons
-          @period={{this.period}}
-          @action={{action "changePeriod"}}
-        />
+        <TopPeriodButtons @period={{@period}} @action={{@changePeriod}} />
       {{else}}
         {{html-safe
           (i18n "topic.browse_all_categories_latest" basePath=(base-path))
