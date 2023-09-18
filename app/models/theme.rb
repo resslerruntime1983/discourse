@@ -33,6 +33,7 @@ class Theme < ActiveRecord::Base
            through: :parent_theme_relation,
            source: :parent_theme
   has_many :color_schemes
+  has_many :theme_settings_migrations
   belongs_to :remote_theme, dependent: :destroy
   has_one :theme_modifier_set, dependent: :destroy
   has_one :theme_svg_sprite, dependent: :destroy
@@ -58,6 +59,9 @@ class Theme < ActiveRecord::Base
            class_name: "ThemeField"
   has_many :builder_theme_fields,
            -> { where("name IN (?)", ThemeField.scss_fields) },
+           class_name: "ThemeField"
+  has_many :migration_fields,
+           -> { where(target_id: Theme.targets[:migrations]) },
            class_name: "ThemeField"
 
   validate :component_validations
@@ -380,6 +384,7 @@ class Theme < ActiveRecord::Base
         extra_scss: 5,
         extra_js: 6,
         tests_js: 7,
+        migrations: 8,
       )
   end
 
@@ -824,6 +829,35 @@ class Theme < ActiveRecord::Base
           )
         end
       end
+    end
+  end
+
+  def migrate_settings
+    runner = ThemeSettingsMigrationsRunner.new(self)
+    results = runner.run
+
+    return if results.blank?
+
+    self.theme_settings.destroy_all
+
+    final_result = results.last
+    final_result[:settings_after].each do |key, val|
+      self.update_setting(key, val)
+    rescue Discourse::NotFound
+      # todo raise something more specific
+      # undeclared setting error
+    end
+
+    results.each do |res|
+      record =
+        ThemeSettingsMigration.new(
+          theme_id: self.id,
+          version: res[:version],
+          name: res[:name],
+          theme_field_id: res[:theme_field_id],
+        )
+      record.calculate_diff(res[:settings_before], res[:settings_after])
+      record.save!
     end
   end
 

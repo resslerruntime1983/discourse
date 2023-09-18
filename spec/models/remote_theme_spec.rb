@@ -35,6 +35,12 @@ RSpec.describe RemoteTheme do
       "@font-face { font-family: magic; src: url($font)}; body {color: $color; content: $name;}"
     end
 
+    let(:migration_js) { <<~JS }
+        export default function migrate(settings) {
+          return settings;
+        }
+      JS
+
     let :initial_repo do
       setup_git_repo(
         "about.json" => about_json,
@@ -51,6 +57,7 @@ RSpec.describe RemoteTheme do
         "assets/font.woff2" => "FAKE FONT",
         "settings.yaml" => "boolean_setting: true",
         "locales/en.yml" => "sometranslations",
+        "migrations/0001-some-name.js" => migration_js,
       )
     end
 
@@ -62,14 +69,21 @@ RSpec.describe RemoteTheme do
 
     around(:each) { |group| MockGitImporter.with_mock { group.run } }
 
+    it "dasdsad" do
+      time = Time.new("2000")
+      freeze_time time
+
+      pp RemoteTheme.import_theme(initial_repo_url)
+    end
+
     it "can correctly import a remote theme" do
       time = Time.new("2000")
       freeze_time time
 
-      @theme = RemoteTheme.import_theme(initial_repo_url)
-      remote = @theme.remote_theme
+      theme = RemoteTheme.import_theme(initial_repo_url)
+      remote = theme.remote_theme
 
-      expect(@theme.name).to eq("awesome theme")
+      expect(theme.name).to eq("awesome theme")
       expect(remote.remote_url).to eq(initial_repo_url)
       expect(remote.remote_version).to eq(`cd #{initial_repo} && git rev-parse HEAD`.strip)
       expect(remote.local_version).to eq(`cd #{initial_repo} && git rev-parse HEAD`.strip)
@@ -79,11 +93,11 @@ RSpec.describe RemoteTheme do
       expect(remote.theme_version).to eq("1.0")
       expect(remote.minimum_discourse_version).to eq("1.0.0")
 
-      expect(@theme.theme_modifier_set.serialize_topic_excerpts).to eq(true)
+      expect(theme.theme_modifier_set.serialize_topic_excerpts).to eq(true)
 
-      expect(@theme.theme_fields.length).to eq(11)
+      expect(theme.theme_fields.length).to eq(11)
 
-      mapped = Hash[*@theme.theme_fields.map { |f| ["#{f.target_id}-#{f.name}", f.value] }.flatten]
+      mapped = Hash[*theme.theme_fields.map { |f| ["#{f.target_id}-#{f.name}", f.value] }.flatten]
 
       expect(mapped["0-header"]).to eq("I AM HEADER")
       expect(mapped["1-scss"]).to eq(scss_data)
@@ -99,18 +113,18 @@ RSpec.describe RemoteTheme do
 
       expect(mapped.length).to eq(11)
 
-      expect(@theme.settings.length).to eq(1)
-      expect(@theme.settings.first.value).to eq(true)
+      expect(theme.settings.length).to eq(1)
+      expect(theme.settings.first.value).to eq(true)
 
       expect(remote.remote_updated_at).to eq_time(time)
 
-      scheme = ColorScheme.find_by(theme_id: @theme.id)
+      scheme = ColorScheme.find_by(theme_id: theme.id)
       expect(scheme.name).to eq("Amazing")
       expect(scheme.colors.find_by(name: "love").hex).to eq("fafafa")
       expect(scheme.colors.find_by(name: "tertiary-low").hex).to eq("ffffff")
 
-      expect(@theme.color_scheme_id).to eq(scheme.id)
-      @theme.update(color_scheme_id: nil)
+      expect(theme.color_scheme_id).to eq(scheme.id)
+      theme.update(color_scheme_id: nil)
 
       File.write("#{initial_repo}/common/header.html", "I AM UPDATED")
       File.write(
@@ -133,15 +147,15 @@ RSpec.describe RemoteTheme do
       expect(remote.remote_version).to eq(`cd #{initial_repo} && git rev-parse HEAD`.strip)
 
       remote.update_from_remote
-      @theme.save!
-      @theme.reload
+      theme.save!
+      theme.reload
 
-      scheme = ColorScheme.find_by(theme_id: @theme.id)
+      scheme = ColorScheme.find_by(theme_id: theme.id)
       expect(scheme.name).to eq("Amazing")
       expect(scheme.colors.find_by(name: "love").hex).to eq("eaeaea")
-      expect(@theme.color_scheme_id).to eq(nil) # Should only be set on first import
+      expect(theme.color_scheme_id).to eq(nil) # Should only be set on first import
 
-      mapped = Hash[*@theme.theme_fields.map { |f| ["#{f.target_id}-#{f.name}", f.value] }.flatten]
+      mapped = Hash[*theme.theme_fields.map { |f| ["#{f.target_id}-#{f.name}", f.value] }.flatten]
 
       # Scss file was deleted
       expect(mapped["5-file"]).to eq(nil)
@@ -149,8 +163,8 @@ RSpec.describe RemoteTheme do
       expect(mapped["0-header"]).to eq("I AM UPDATED")
       expect(mapped["1-scss"]).to eq(scss_data)
 
-      expect(@theme.settings.length).to eq(1)
-      expect(@theme.settings.first.value).to eq(32)
+      expect(theme.settings.length).to eq(1)
+      expect(theme.settings.first.value).to eq(32)
 
       expect(remote.remote_updated_at).to eq_time(time)
       expect(remote.about_url).to eq("https://newsite.com/about")
@@ -163,13 +177,13 @@ RSpec.describe RemoteTheme do
       `cd #{initial_repo} && git commit -am "update"`
 
       remote.update_from_remote
-      @theme.save
-      @theme.reload
+      theme.save
+      theme.reload
 
-      scheme_count = ColorScheme.where(theme_id: @theme.id).count
+      scheme_count = ColorScheme.where(theme_id: theme.id).count
       expect(scheme_count).to eq(1)
 
-      scheme = ColorScheme.find_by(theme_id: @theme.id)
+      scheme = ColorScheme.find_by(theme_id: theme.id)
       expect(scheme.colors.find_by(name: "tertiary_low_color")).to eq(nil)
     end
 

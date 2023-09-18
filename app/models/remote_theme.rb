@@ -110,30 +110,36 @@ class RemoteTheme < ActiveRecord::Base
     remote_theme = new
     remote_theme.theme = theme
     remote_theme.remote_url = ""
-    remote_theme.update_from_remote(importer, skip_update: true)
 
-    theme.save!
+    do_update_child_components = false
+    theme.transaction do
+      remote_theme.update_from_remote(importer, skip_update: true)
 
-    if existing && update_components.present? && update_components != "none"
-      child_components = child_components.map { |url| ThemeStore::GitImporter.new(url.strip).url }
+      theme.save!
+      theme.migrate_settings
 
-      if update_components == "sync"
-        ChildTheme
-          .joins(child_theme: :remote_theme)
-          .where("remote_themes.remote_url NOT IN (?)", child_components)
-          .delete_all
+      if existing && update_components.present? && update_components != "none"
+        child_components = child_components.map { |url| ThemeStore::GitImporter.new(url.strip).url }
+
+        if update_components == "sync"
+          ChildTheme
+            .joins(child_theme: :remote_theme)
+            .where("remote_themes.remote_url NOT IN (?)", child_components)
+            .delete_all
+        end
+
+        child_components -=
+          theme
+            .child_themes
+            .joins(:remote_theme)
+            .where("remote_themes.remote_url IN (?)", child_components)
+            .pluck("remote_themes.remote_url")
+        theme.child_components = child_components
+        do_update_child_components = true
       end
-
-      child_components -=
-        theme
-          .child_themes
-          .joins(:remote_theme)
-          .where("remote_themes.remote_url IN (?)", child_components)
-          .pluck("remote_themes.remote_url")
-      theme.child_components = child_components
-      theme.update_child_components
     end
 
+    theme.update_child_components if do_update_child_components
     theme
   ensure
     begin
@@ -160,9 +166,13 @@ class RemoteTheme < ActiveRecord::Base
     remote_theme.private_key = private_key
     remote_theme.branch = branch
     remote_theme.remote_url = importer.url
-    remote_theme.update_from_remote(importer)
 
-    theme.save!
+    theme.transaction do
+      remote_theme.update_from_remote(importer)
+      theme.save!
+      theme.migrate_settings
+    end
+
     theme
   ensure
     begin
@@ -333,7 +343,7 @@ class RemoteTheme < ActiveRecord::Base
       updated_fields << theme.set_field(**opts.merge(value: value))
     end
 
-    theme.convert_settings
+    # theme.convert_settings
 
     # Destroy fields that no longer exist in the remote theme
     field_ids_to_destroy = theme.theme_fields.pluck(:id) - updated_fields.map { |tf| tf&.id }

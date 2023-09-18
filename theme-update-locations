@@ -1,0 +1,5 @@
+controller#import
+  RemoteTheme.import_theme
+  RemoteTheme.update_zipped_theme
+controller#update
+  RemoteTheme#update_from_remote
